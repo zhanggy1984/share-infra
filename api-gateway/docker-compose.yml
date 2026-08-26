@@ -1,0 +1,37 @@
+# ============================================================
+# api-gateway — 统一 API 网关层（共享 infra 的一部分）
+#
+# 位置：各前端 nginx 之后、5 个后端之前，按 Host 虚拟域名路由。
+# 能力：traceId（X-Request-ID）+ 限流（按真实 IP）+ SSE 透传。
+# 前提：先部署共享 infra（infra/ `docker compose up -d`）及各 agent 后端容器。
+# 启动：cd infra/api-gateway && docker compose up -d
+# 说明：不映射宿主端口，仅 shared-infra 网络内可达（前端 nginx 经容器名 api-gateway 访问）。
+# ============================================================
+
+name: api-gateway
+
+services:
+  api-gateway:
+    image: nginx:1.27-alpine
+    container_name: api-gateway
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./conf.d:/etc/nginx/conf.d:ro
+    healthcheck:
+      # 用 127.0.0.1 而非 localhost：busybox wget 把 localhost 解析到 IPv6 ::1，
+      # 而 nginx 只监听 IPv4 0.0.0.0，会误判 unhealthy
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8099/gateway/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    mem_limit: 128m
+    cpus: "0.25"
+    restart: unless-stopped
+    networks:
+      - shared-infra
+
+networks:
+  shared-infra:
+    external: true
+    name: shared-infra_shared-infra
