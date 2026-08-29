@@ -41,9 +41,18 @@ GRANT ALL PRIVILEGES ON native_rag.* TO '${MYSQL_RAG_USER}'@'%';
 CREATE USER IF NOT EXISTS '${MYSQL_CS_USER}'@'%' IDENTIFIED BY '${MYSQL_CS_PASSWORD}';
 GRANT ALL PRIVILEGES ON customer_service.* TO '${MYSQL_CS_USER}'@'%';
 
--- ---------- agent-evaluation-offline：evaluation ----------
+-- ---------- agent-evaluation-offline：evaluation（运行时 DML）+ evaluation_migrate（迁移 DDL） ----------
+-- P2-C3 最小权限分离：运行时账号只 DML（SELECT/INSERT/UPDATE/DELETE，无 DDL）；
+-- DDL 由迁移专用账号持有（仅 alembic upgrade head 短时使用）。
+-- 只动 ai_evaluation 段，其余 agent 账号/库不受影响。
+-- 存量库（老脚本已授 ALL 给 evaluation）：init 脚本只首跑，需在共享 MySQL 手动降权，
+-- 见 agent-evaluation-offline 上线待办 P2-C3 注记的存量 SQL。
 CREATE USER IF NOT EXISTS '${MYSQL_EVAL_USER}'@'%' IDENTIFIED BY '${MYSQL_EVAL_PASSWORD}';
-GRANT ALL PRIVILEGES ON ai_evaluation.* TO '${MYSQL_EVAL_USER}'@'%';
+-- 运行时账号：最小 DML（无 DDL）
+GRANT SELECT, INSERT, UPDATE, DELETE ON ai_evaluation.* TO '${MYSQL_EVAL_USER}'@'%';
+CREATE USER IF NOT EXISTS '${MYSQL_EVAL_MIGRATE_USER}'@'%' IDENTIFIED BY '${MYSQL_EVAL_MIGRATE_PASSWORD}';
+-- 迁移账号：单库 ALL（DDL+DML，含 alembic_version 读写），无 GRANT OPTION
+GRANT ALL PRIVILEGES ON ai_evaluation.* TO '${MYSQL_EVAL_MIGRATE_USER}'@'%';
 
 -- ---------- smart-procurement：smart ----------
 CREATE USER IF NOT EXISTS '${MYSQL_SP_USER}'@'%' IDENTIFIED BY '${MYSQL_SP_PASSWORD}';
