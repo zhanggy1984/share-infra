@@ -19,6 +19,8 @@
 | Neo4j | `neo4j` | neo4j:5 | 图谱库（sp 唯一用户） |
 | Attu | `attu` | zilliz/attu:v2.5.6 | Milvus 可视化管理 UI |
 | BGE-M3 | `bge-m3` | 自构建（./docker/bge-m3） | embedding 服务，模型懒加载 |
+| Elasticsearch | `elasticsearch` | 自构建（./docker/es，ES 8.13.4 + IK） | agent-evaluation-online 观测存储（事件/日志/rollup），dev 共享底座无鉴权 |
+| Kafka | `kafka` | apache/kafka:3.8.0 | agent-evaluation-online 事件上报通道（KRaft 单节点，dev PLAINTEXT） |
 | API 网关 | `api-gateway` | nginx:1.27-alpine | 5 个 agent 前端统一反代入口（`infra/api-gateway/` 独立 compose，非中间件） |
 
 > 应用容器内永远用**逻辑主机名**连接（如 `mysql:3306`、`milvus:19530`）；宿主端口仅用于本机调试工具。
@@ -58,6 +60,8 @@ cd api-gateway && docker compose up -d
 | Neo4j HTTP / Bolt | `localhost:37474` / `localhost:37687` |
 | MinIO API / Console | `localhost:39000` / `localhost:39001` |
 | Attu（Milvus UI） | `http://localhost:38000` |
+| Elasticsearch | `localhost:39200` |
+| Kafka | `localhost:39092` |
 | BGE-M3 | `http://localhost:38081`（`/health`，`/embed`） |
 
 ---
