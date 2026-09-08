@@ -1,0 +1,172 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "infra/api-gateway/docs/timing-event.schema.json",
+  "title": "全链路耗时埋点统一事件 Schema v1.0",
+  "type": "object",
+  "description": "5 个 agent + api-gateway 的统一耗时埋点事件。单一事实来源：本文档 + timing-event-schema.md。gateway 事件仅含 request_time 等外部耗时字段，不适用 business/timings 校验。",
+  "required": [
+    "schema_version", "event_type", "trace_id", "service", "type", "ts"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "event_type": { "enum": ["request", "task", "gateway"] },
+    "trace_id": { "type": "string", "minLength": 1 },
+    "service": {
+      "enum": [
+        "good-question", "customer-service", "contract-check",
+        "smart-procurement", "agent-evaluation-offline", "api-gateway"
+      ]
+    },
+    "type": { "type": "string", "minLength": 1 },
+    "ts": { "type": "integer" },
+    "method": { "type": "string" },
+    "path": { "type": "string" },
+    "status": { "type": "integer" },
+    "total_ms": { "type": "integer", "minimum": 0 },
+    "request_time": { "type": "number", "minimum": 0 },
+    "result": { "enum": ["ok", "error", "canceled", "rate_limited"] },
+    "remark": { "type": "string" },
+    "business": {
+      "type": "object",
+      "anyOf": [
+        { "$ref": "#/definitions/business_good_question" },
+        { "$ref": "#/definitions/business_customer_service" },
+        { "$ref": "#/definitions/business_contract_check" },
+        { "$ref": "#/definitions/business_smart_procurement" },
+        { "$ref": "#/definitions/business_agent_evaluation_offline" }
+      ]
+    },
+    "timings": { "type": "array", "items": { "$ref": "#/definitions/timing" } },
+    "llm_calls": { "type": "array", "items": { "$ref": "#/definitions/llm_call" } },
+    "error": { "$ref": "#/definitions/error" },
+    "warnings": { "type": "array" }
+  },
+  "oneOf": [
+    {
+      "properties": { "event_type": { "const": "request" } },
+      "required": ["method", "path", "status", "total_ms", "result", "business", "timings"]
+    },
+    {
+      "properties": { "event_type": { "const": "task" } },
+      "required": ["total_ms", "result", "business", "timings"]
+    },
+    {
+      "properties": { "event_type": { "const": "gateway" } },
+      "required": ["request_time"]
+    }
+  ],
+  "definitions": {
+    "timing": {
+      "type": "object",
+      "required": ["name", "dur_ms", "cnt"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9.]+$" },
+        "dur_ms": { "type": "integer", "minimum": 0 },
+        "cnt": { "type": "integer", "minimum": 1 },
+        "start_ms": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "llm_call": {
+      "type": "object",
+      "required": ["name", "status", "dur_ms"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9.]+$" },
+        "status": { "enum": ["ok", "error", "timeout"] },
+        "dur_ms": { "type": "integer", "minimum": 0 },
+        "in_tokens": { "type": "integer", "minimum": 0 },
+        "out_tokens": { "type": "integer", "minimum": 0 },
+        "all_tokens": { "type": "integer", "minimum": 0 },
+        "retries": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "error": {
+      "type": "object",
+      "required": ["type", "message"],
+      "properties": {
+        "type": {
+          "enum": [
+            "LLM_TIMEOUT", "LLM_UNAVAILABLE", "LLM_RESPONSE_INVALID",
+            "DB_ERROR", "DB_TIMEOUT", "TASK_TIMEOUT", "TASK_FAILED",
+            "UPSTREAM_UNAVAILABLE", "UPSTREAM_TIMEOUT", "RATE_LIMITED",
+            "BAD_HOST", "AUTH_FAILED", "VALIDATION_ERROR",
+            "CLIENT_DISCONNECT", "INTERNAL_ERROR"
+          ]
+        },
+        "message": { "type": "string" },
+        "stage": { "type": "string" },
+        "retries": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "tokens": {
+      "type": "object",
+      "required": ["in", "out", "all"],
+      "properties": {
+        "in": { "type": "integer", "minimum": 0 },
+        "out": { "type": "integer", "minimum": 0 },
+        "all": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "business_good_question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session_id", "cache_hit", "sources_count", "tokens"],
+      "properties": {
+        "session_id": { "type": "string" },
+        "cache_hit": { "type": "boolean" },
+        "sources_count": { "type": "integer", "minimum": 0 },
+        "tokens": { "$ref": "#/definitions/tokens" }
+      }
+    },
+    "business_customer_service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session_id", "intent", "route", "tool_calls", "tokens"],
+      "properties": {
+        "session_id": { "type": "string" },
+        "intent": { "type": "string" },
+        "route": { "type": "string" },
+        "tool_calls": { "type": "integer", "minimum": 0 },
+        "tokens": { "$ref": "#/definitions/tokens" }
+      }
+    },
+    "business_contract_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "file_sha", "segments", "violations", "status", "tokens"],
+      "properties": {
+        "task_id": { "type": "integer" },
+        "file_sha": { "type": "string" },
+        "segments": { "type": "integer", "minimum": 0 },
+        "violations": { "type": "integer", "minimum": 0 },
+        "status": { "enum": ["SUCCESS", "FAILED", "WAITING_REVIEW", "INCOMPLETE"] },
+        "tokens": { "$ref": "#/definitions/tokens" }
+      }
+    },
+    "business_smart_procurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["review_id", "dimension", "cache_hit", "tokens"],
+      "properties": {
+        "review_id": { "type": "integer" },
+        "dimension": { "type": "string" },
+        "cache_hit": { "type": "boolean" },
+        "tokens": { "$ref": "#/definitions/tokens" }
+      }
+    },
+    "business_agent_evaluation_offline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_id", "agent", "suite", "cases_total", "cases_passed", "score", "status", "judge_tokens"],
+      "properties": {
+        "run_id": { "type": "integer" },
+        "agent": { "type": "string" },
+        "suite": { "type": "string" },
+        "cases_total": { "type": "integer", "minimum": 0 },
+        "cases_passed": { "type": "integer", "minimum": 0 },
+        "score": { "type": "number" },
+        "status": { "enum": ["pending", "running", "scoring", "completed", "failed", "timeout"] },
+        "judge_tokens": { "$ref": "#/definitions/tokens" }
+      }
+    }
+  }
+}
