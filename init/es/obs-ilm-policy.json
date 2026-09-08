@@ -1,0 +1,23 @@
+{
+  "policy": {
+    "_meta": {
+      "description": "obs 事件/日志 index 保留策略（detail §7.1）：hot → 30d delete。infra 落建快照；权威源 = online 仓 agent-evaluation-online/es-template/obs-ilm-policy.json（mapping 唯一源见 es-template/README.md）。"
+    },
+    "phases": {
+      "hot": {
+        "min_age": "0ms",
+        "actions": {
+          "set_priority": {
+            "priority": 100
+          }
+        }
+      },
+      "delete": {
+        "min_age": "30d",
+        "actions": {
+          "delete": {}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "index_patterns": ["${ENV}.obs-log-*"],
+  "priority": 200,
+  "version": 1,
+  "_meta": {
+    "description": "obs 日志 index 周滚动 template（detail §5.2 mapping + §7.1 ILM 30d）。与 event template 同构 mapping（log index 全量白名单 dynamic:false）。infra 落建快照；权威源 = online 仓 agent-evaluation-online/es-template/obs-log-template.json（mapping 唯一源 backend consumer/es.py::_MAPPING）。",
+    "authority": "agent-evaluation-online backend/app/consumer/es.py::_MAPPING"
+  },
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "obs-ilm-30d",
+      "analysis": {
+        "analyzer": {
+          "zh": {
+            "type": "custom",
+            "tokenizer": "ik_max_word"
+          }
+        }
+      }
+    },
+    "mappings": {
+      "dynamic": false,
+      "properties": {
+        "schema_version": {"type": "keyword"},
+        "event_kind": {"type": "keyword"},
+        "trace_id": {"type": "keyword"},
+        "agent": {"type": "keyword"},
+        "trace_key": {"type": "keyword"},
+        "agent_version": {"type": "keyword"},
+        "interface": {"type": "keyword"},
+        "node": {"type": "keyword"},
+        "seq": {"type": "integer"},
+        "branch": {"type": "integer"},
+        "parent": {"type": "integer"},
+        "ts": {"type": "date", "format": "epoch_millis"},
+        "@timestamp": {"type": "date"},
+        "duration_ms": {"type": "long"},
+        "status": {"type": "keyword"},
+        "error_type": {"type": "keyword"},
+        "error_msg": {"type": "text", "analyzer": "zh"},
+        "input": {"type": "text", "analyzer": "zh", "fields": {"kw": {"type": "keyword"}}},
+        "output": {"type": "text", "analyzer": "zh"},
+        "usage": {
+          "properties": {
+            "prompt_tokens": {"type": "long"},
+            "completion_tokens": {"type": "long"},
+            "total_tokens": {"type": "long"}
+          }
+        },
+        "model": {"type": "keyword"},
+        "log_level": {"type": "keyword"},
+        "log_message": {"type": "text", "analyzer": "zh"},
+        "quality": {"enabled": false},
+        "retrieve_hit": {"enabled": false},
+        "session_ctx": {"enabled": false},
+        "extra": {"enabled": false}
+      }
+    }
+  }
+}

@@ -322,3 +322,26 @@ services:
     networks:
       shared-infra:
         aliases: [kafka]
+
+  # ==================== ES template/ILM 一次性 init（es-init，restart: no）====================
+  # 2026-09-08 增：obs 事件/日志 index template + ILM 30d 策略落建（agent-evaluation-online 平台提交物
+  # agent-evaluation-online/es-template/ 的同构快照，mapping 唯一源 = online backend consumer/es.py::_MAPPING）。
+  # ES 无 docker-entrypoint-initdb.d 等价物 → 一次性 init 服务（语义对齐 mysql init/mysql/）；重跑 `docker
+  # compose up es-init` 幂等（PUT 覆盖）。主 `up` 时已退出的 es-init 会随 compose 重跑（幂等无害）。
+  es-init:
+    image: curlimages/curl:latest
+    container_name: shared-es-init
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["sh /init/apply.sh && echo 'es-init 完成' && sleep 2"]
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      ES_URL: http://elasticsearch:9200
+      ENV: ${OBS_ENV:-dev}
+    volumes:
+      - ./init/es:/init:ro
+    mem_limit: 64m
+    restart: "no"
+    networks:
+      - shared-infra
