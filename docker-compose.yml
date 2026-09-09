@@ -310,10 +310,15 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      # 2026-09-09 D1：显式钉死 log.dirs 与卷挂载点一致。此前未设 → Kafka 落默认 /tmp/kafka-logs
+      # （容器可写层，无卷保护），compose 却把卷挂在官方示例目录 /tmp/kraft-combined-logs → 卷空载，
+      # 任意 recreate 即数据归零（今晨 INTERNAL listener 修复的 recreate 已实际清空过一次，观测数据
+      # 持续流入自愈未察觉）。KAFKA_LOG_DIRS 显式对齐 + 下方挂载点改 /tmp/kafka-logs → 数据真正入卷。
+      KAFKA_LOG_DIRS: /tmp/kafka-logs
     ports:
       - "${KAFKA_PORT:-39092}:9092"
     volumes:
-      - kafka-data:/tmp/kraft-combined-logs
+      - kafka-data:/tmp/kafka-logs
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1 || exit 1"]
       interval: 10s
