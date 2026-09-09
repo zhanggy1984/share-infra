@@ -61,7 +61,7 @@ cd api-gateway && docker compose up -d
 | MinIO API / Console | `localhost:39000` / `localhost:39001` |
 | Attu（Milvus UI） | `http://localhost:38000` |
 | Elasticsearch | `localhost:39200` |
-| Kafka | `localhost:39092` |
+| Kafka | `localhost:39092`（容器内走 `kafka:19092` INTERNAL，绕 Docker Desktop NAT 黑洞） |
 | BGE-M3 | `http://localhost:38081`（`/health`，`/embed`） |
 
 ---
